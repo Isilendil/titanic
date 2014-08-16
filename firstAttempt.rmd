@@ -1,0 +1,35 @@
+---
+title: "firstAttempt"
+author: "isilendil"
+date: "2014.08.16."
+output: pdf_document
+---
+
+###load train set
+```{r}
+train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/train.csv")
+```
+
+###load test set
+```{r}
+test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/test.csv")
+```
+
+###take a look at the data set
+```{r}
+str(train)
+str(test)
+table(train$Survived)
+prop.table(table(train$Survived))
+```
+
+###predict
+```{r}
+test$Survived <- rep(0, dim(test)[1])
+```
+
+###generate result
+```{r}
+submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
+write.csv(submit, file = "/home/yanyg/Kaggle/Titanic:MachineLearningfromDisaster/titanic/firstAttempt.csv", row.names = FALSE)
+```
