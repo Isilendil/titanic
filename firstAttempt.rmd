@@ -1,8 +1,8 @@
 ---
 title: "firstAttempt"
 author: "isilendil"
-date: "2014.08.16."
-output: pdf_document
+date: "2014.08.16"
+output: html_document
 ---
 
 ###load train set
