@@ -1,0 +1,127 @@
+---
+title: "fourthAttempt.rmd"
+author: "isilendil"
+date: "2014.08.18."
+output: html_document
+---
+
+### load train set
+```{r}
+train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/train.csv")
+```
+
+### load test set
+```{r}
+test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/test.csv")
+```
+
+### combine tow data sets
+```{r}
+test$Survived <- NA
+combi <- rbind(train, test)
+```
+
+### cast name column, which encoded as factor, back into string
+```{r}
+combi$Name <- as.character(combi$Name)
+combi$Name[1]
+```
+
+### break apart a string
+```{r}
+strsplit(combi$Name[1], split = '[,.]')
+strsplit(combi$Name[1], split = '[,.]')[[1]]
+strsplit(combi$Name[1], split = '[,.]')[[1]][2]
+combi$Title <- sapply(combi$Name, FUN = function(x) { strsplit(x, split='[,.]')[[1]][2]})
+combi$Title <- sub(' ', '', combi$Title)
+```
+
+### look at the new variable
+```{r}
+table(combi$Title)
+```
+
+### combine some unusual titles into a single catetory
+```{r}
+combi$Title[combi$Title %in% c('Mme', 'Mlle')] <- 'Mlle'
+combi$Title[combi$Title %in% c('Capt', 'Don', 'Major', 'Sir')] <- 'Sir'
+combi$Title[combi$Title %in% c('Dona', 'Lady', 'the Countess', 'Jonkheer')] <- 'Lady'
+combi$Title <- factor(combi$Title)
+```
+
+### create a new variable named FamilySize
+```{r}
+combi$FamilySize <- combi$SibSp + combi$Parch + 1
+```
+
+### new variable called Surname 
+```{r}
+combi$Surname <- sapply(combi$Name, FUN = function(x) { strsplit(x, split='[,.]')[[1]][1]})
+```
+
+### new variable called FamilyID
+```{r}
+combi$FamilyID <- paste(as.character(combi$FamilySize), combi$Surname, sep = "")
+```
+
+single people should not have the same FamilyID
+```{r}
+combi$FamilyID[combi$FamilySize <= 2] <- 'Small'
+```
+
+look at the new variable
+```{r}
+table(combi$FamilyID)
+```
+
+store the table
+```{r}
+famIDs <- data.frame(table(combi$FamilyID))
+```
+
+adjust the FamilyID column
+```{r}
+famIDs <- famIDs[famIDs$Freq <= 2, ]
+combi$FamilyID[combi$FamilyID %in% famIDs$Var1] <- 'Small'
+combi$FamilyID <- factor(combi$FamilyID)
+```
+
+### split the train set and test set back into their original states
+```{r}
+train <- combi[1:dim(train)[1], ]
+test <- combi[(dim(train)[1]+1):dim(combi)[1], ]
+```
+
+### new model
+```{r}
+library(rpart)
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID, data = train, method = "class")
+```
+
+load some packages to draw the decision tree
+```{r}
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+```
+
+render the figure
+```{r}
+fancyRpartPlot(fit)
+```
+
+generate the predicting result
+```{r}
+Prediction <- predict(fit, test, type = "class")
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "fourthAttempt.csv", row.names = FALSE)
+```
+
+
+
+
+
+
+
+
+

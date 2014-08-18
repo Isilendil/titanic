@@ -1,0 +1,70 @@
+---
+title: "thirdAttempt.rmd"
+author: "isilendil"
+date: "2014.08.18"
+output: html_document
+---
+
+### load train set
+```{r}
+train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/train.csv")
+```
+
+### load test set
+```{r}
+test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/test.csv")
+```
+
+### rpart package
+Recursive Partitioning and Regression Trees using CART decision tree algorithm
+```{r}
+library(rpart)
+```
+
+### first model
+```{r}
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked, data = train, method = "class")
+```
+
+examine the tree
+```{r}
+plot(fit)
+text(fit)
+```
+
+load some packages to draw the decision tree
+```{r}
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+```
+
+render the figure
+```{r}
+fancyRpartPlot(fit)
+```
+
+generate the predicting result
+```{r}
+Prediction <- predict(fit, test, type = "class")
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "thirdAttempt.csv", row.names = FALSE)
+```
+
+### a overfitting model
+```{r}
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked, data = train, method = "class", control = rpart.control(minsplit=2, cp=0))
+fancyRpartPlot(fit)
+```
+
+### an interactive version of the decision tree
+```{r}
+yourControl = c(2, 0)
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked, data = train, method = "class", control = rpart.control(minsplit=yourControl[1], cp=yourControl[2]))
+new.fit <- prp(fit, snip = TRUE)$obj
+fancyRpartPlot(new.fit)
+```
+
+
+
+
