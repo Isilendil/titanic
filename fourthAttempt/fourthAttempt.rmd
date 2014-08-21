@@ -7,12 +7,12 @@ output: html_document
 
 ### load train set
 ```{r}
-train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/train.csv")
+train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/train.csv")
 ```
 
 ### load test set
 ```{r}
-test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/test.csv")
+test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/test.csv")
 ```
 
 ### combine tow data sets

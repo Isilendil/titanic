@@ -1,18 +1,18 @@
 ---
-title: "fifthAttempt"
+title: "CabinModel"
 author: "isilendil"
-date: "2014.08.19"
+date: "2014.08.20"
 output: html_document
 ---
 
 ### load train set
 ```{r}
-train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/train.csv")
+train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/train.csv")
 ```
 
 ### load test set
 ```{r}
-test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/test.csv")
+test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/test.csv")
 ```
 
 ### combine tow data sets
@@ -36,10 +36,6 @@ combi$Title <- sapply(combi$Name, FUN = function(x) { strsplit(x, split='[,.]')[
 combi$Title <- sub(' ', '', combi$Title)
 ```
 
-### look at the new variable
-```{r}
-table(combi$Title)
-```
 
 ### combine some unusual titles into a single catetory
 ```{r}
@@ -69,11 +65,6 @@ single people should not have the same FamilyID
 combi$FamilyID[combi$FamilySize <= 2] <- 'Small'
 ```
 
-look at the new variable
-```{r}
-table(combi$FamilyID)
-```
-
 store the table
 ```{r}
 famIDs <- data.frame(table(combi$FamilyID))
@@ -86,40 +77,11 @@ combi$FamilyID[combi$FamilyID %in% famIDs$Var1] <- 'Small'
 combi$FamilyID <- factor(combi$FamilyID)
 ```
 
-
-### sample function test
-```{r}
-sample(1:10, replace = TRUE)
-```
-
-summary of ages
-```{r}
-summary(combi$Age)
-```
-
-### create a new variable named FamilySize
 ### a model to predict ages labeled NA
 ```{r}
 library(rpart)
 Agefit <- rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + FamilySize, data = combi[!is.na(combi$Age),], method = "anova")
 combi$Age[is.na(combi$Age)] <- predict(Agefit, combi[is.na(combi$Age), ])
-```
-
-load some packages to draw the decision tree
-```{r}
-library(rattle)
-library(rpart.plot)
-library(RColorBrewer)
-```
-
-render the figure
-```{r}
-fancyRpartPlot(Agefit)
-```
-
-### preprocessing 
-```{r}
-summary(combi)
 ```
 
 Embarked and Fare have problems.
@@ -147,23 +109,100 @@ combi$FamilyID2[combi$FamilySize <= 3] <- 'Small'
 combi$FamilyID2 <- factor(combi$FamilyID2)
 ```
 
+### look at the variable named Cabin
+```{r}
+nrowTrain <- nrow(train[train$Cabin != "", ]); nrowTrain
+nrowTrain / nrow(train)
+nrowTest <- nrow(test[test$Cabin != "", ]); nrowTest
+nrowTest / nrow(test)
+```
+
+preprocessing 
+```{r}
+cabinTemp <- as.character(combi$Cabin)
+combi$CabinLayer <- sapply(strsplit(cabinTemp, split = '[0-9]'), FUN = function(x) { x[1] })
+combi$CabinLayer <- as.factor(combi$CabinLayer)
+combi$CabinNumber <- sapply(strsplit(cabinTemp, split = '[a-zA-Z]'), FUN = function(x) { as.integer(x[2])})
+
+```
+
 ### split the train set and test set back into their original states
 ```{r}
 train <- combi[1:dim(train)[1], ]
 test <- combi[(dim(train)[1]+1):dim(combi)[1], ]
+```
+### new training data and testing data
+```{r}
+newTrain <- train[c((!is.na(train$CabinLayer))&(!is.na(train$CabinNumber))), ]
+newTest <- test[(c(!is.na(test$CabinLayer))&(!is.na(test$CabinNumber))), ]
+```
+
+### model using Cabin variable
+```{r}
+library(rpart)
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID + CabinLayer + CabinNumber, data = newTrain, method = "class")
+```
+
+```
+
+### model using Cabin variable
+```{r}
+library(rpart)
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID + CabinLayer + CabinNumber, data = newTrain, method = "class")
+```
+
+load some packages to draw the decision tree
+```{r}
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+```
+
+render the figure
+```{r}
+fancyRpartPlot(fit)
 ```
 
 ### random forests model
 ```{r}
 library(randomForest)
 set.seed(415)
-fit <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID2, data = train, importance = TRUE, ntree = 2000)
+fit <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID2 + CabinLayer + CabinNumber, data = newTrain, importance = TRUE, ntree = 2000)
 ```
 
 look at what variables were important
 ```{r}
 varImpPlot(fit)
 ```
+
+generate predicting result
+```{r}
+Prediction <- predict(fit, newTest, OOB = TRUE, type = "response")
+submit <- data.frame(PassengerId = newTest$PassengerId, Survived = Prediction)
+write.csv(submit, file = "/home/yanyg/Kaggle/Titanic:MachineLearningfromDisaster/titanic/CabinModel/CabinModel.csv", row.names = FALSE)
+```
+
+### diff two results
+```{r}
+result0Original <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/fifthAttempt/fifthAttempt2.csv")
+result0 <- result0Original[c((!is.na(test$CabinLayer) & (!is.na(test$CabinNumber)))),]
+result1 <- submit
+resultCombi <- rbind(result0, result1)
+resultCombi$Survived <- as.integer(resultCombi$Survived)
+result0 <- resultCombi[1:nrow(result0), ]
+result1 <- resultCombi[(nrow(result0)+1):nrow(resultCombi), ]
+result0$Survived - result1$Survived
+```
+
+### final result
+```{r}
+finalResult <- rbind(result0Original[c((is.na(test$CabinLayer) | (is.na(test$CabinNumber)))), ], submit)
+write.csv(finalResult, file = "/home/yanyg/Kaggle/Titanic:MachineLearningfromDisaster/titanic/CabinModel/finalResult.csv", row.names = FALSE)
+```
+
+
+
+
 
 
 

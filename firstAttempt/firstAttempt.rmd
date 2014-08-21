@@ -7,12 +7,12 @@ output: html_document
 
 ###load train set
 ```{r}
-train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/train.csv")
+train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/train.csv")
 ```
 
 ###load test set
 ```{r}
-test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/test.csv")
+test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/test.csv")
 ```
 
 ###take a look at the data set
@@ -31,5 +31,5 @@ test$Survived <- rep(0, dim(test)[1])
 ###generate result
 ```{r}
 submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
-write.csv(submit, file = "/home/yanyg/Kaggle/Titanic:MachineLearningfromDisaster/titanic/firstAttempt.csv", row.names = FALSE)
+write.csv(submit, file = "/home/yanyg/Kaggle/Titanic:MachineLearningfromDisaster/titanic/firstAttempt/firstAttempt.csv", row.names = FALSE)
 ```
