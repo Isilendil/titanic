@@ -1,0 +1,206 @@
+---
+title: "fifthAttempt"
+author: "isilendil"
+date: "2014.08.19"
+output: html_document
+---
+
+### load train set
+```{r}
+train <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/train.csv")
+```
+
+### load test set
+```{r}
+test <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/data/test.csv")
+```
+
+### combine tow data sets
+```{r}
+test$Survived <- NA
+combi <- rbind(train, test)
+```
+
+### cast name column, which encoded as factor, back into string
+```{r}
+combi$Name <- as.character(combi$Name)
+combi$Name[1]
+```
+
+### break apart a string
+```{r}
+strsplit(combi$Name[1], split = '[,.]')
+strsplit(combi$Name[1], split = '[,.]')[[1]]
+strsplit(combi$Name[1], split = '[,.]')[[1]][2]
+combi$Title <- sapply(combi$Name, FUN = function(x) { strsplit(x, split='[,.]')[[1]][2]})
+combi$Title <- sub(' ', '', combi$Title)
+```
+
+### look at the new variable
+```{r}
+table(combi$Title)
+```
+
+### combine some unusual titles into a single catetory
+```{r}
+combi$Title[combi$Title %in% c('Mme')] <- 'Mrs'
+combi$Title[combi$Title %in% c('Mlle')] <- 'Ms'
+combi$Title[combi$Title %in% c('Col', 'Capt', 'Don', 'Major', 'Sir')] <- 'Sir'
+combi$Title[combi$Title %in% c('Dona', 'Lady', 'the Countess', 'Jonkheer')] <- 'Lady'
+combi$Title <- factor(combi$Title)
+```
+
+### create a new variable named FamilySize
+```{r}
+combi$FamilySize <- combi$SibSp + combi$Parch + 1
+```
+
+### new variable called Surname 
+```{r}
+combi$Surname <- sapply(combi$Name, FUN = function(x) { strsplit(x, split='[,.]')[[1]][1]})
+```
+
+### new variable called FamilyID
+```{r}
+combi$FamilyID <- paste(as.character(combi$FamilySize), combi$Surname, sep = "")
+```
+
+single people should not have the same FamilyID
+```{r}
+combi$FamilyID[combi$FamilySize <= 2] <- 'Small'
+```
+
+look at the new variable
+```{r}
+table(combi$FamilyID)
+```
+
+store the table
+```{r}
+famIDs <- data.frame(table(combi$FamilyID))
+```
+
+adjust the FamilyID column
+```{r}
+famIDs <- famIDs[famIDs$Freq <= 2, ]
+combi$FamilyID[combi$FamilyID %in% famIDs$Var1] <- 'Small'
+combi$FamilyID <- factor(combi$FamilyID)
+```
+
+
+### sample function test
+```{r}
+sample(1:10, replace = TRUE)
+```
+
+summary of ages
+```{r}
+summary(combi$Age)
+```
+
+### a model to predict ages labeled NA
+```{r}
+library(rpart)
+Agefit <- rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + FamilySize, data = combi[!is.na(combi$Age),], method = "anova")
+combi$Age[is.na(combi$Age)] <- predict(Agefit, combi[is.na(combi$Age), ])
+```
+
+load some packages to draw the decision tree
+```{r}
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+```
+
+render the figure
+```{r}
+fancyRpartPlot(Agefit)
+```
+
+### preprocessing 
+```{r}
+summary(combi)
+```
+
+Embarked and Fare have problems.
+
+deal with Embarked
+```{r}
+summary(combi$Embarked)
+which(combi$Embarked == '')
+combi$Embarked[which(combi$Embarked == '')] = "S"
+combi$Embarked <- factor(combi$Embarked)
+```
+
+deal with Fare
+```{r}
+summary(combi$Fare)
+which(is.na(combi$Fare))
+combi$Fare[which(is.na(combi$Fare))] <- median(combi$Fare, na.rm = TRUE)
+```
+
+deal with FamilyID which has too many factors to satisfy the request of Random Forests in R.
+```{r}
+combi$FamilyID2 <- combi$FamilyID
+combi$FamilyID2 <- as.character(combi$FamilyID2)
+combi$FamilyID2[combi$FamilySize <= 3] <- 'Small'
+combi$FamilyID2 <- factor(combi$FamilyID2)
+```
+
+### factorize
+```{r}
+combi$Pclass <- factor(combi$Pclass)
+combi$Survived <- factor(combi$Survived)
+combi$SibSp <- factor(combi$SibSp)
+combi$Parch <- factor(combi$Parch)
+combi$FamilySize <- factor(combi$FamilySize)
+combi$Fareclass <- 0
+medianFare <- median(combi$Fare)
+combi$Fareclass <- combi$Fare > medianFare
+combi$Fareclass <- factor(combi$Fareclass)
+str(combi)
+```
+
+### split the train set and test set back into their original states
+```{r}
+train <- combi[1:dim(train)[1], ]
+test <- combi[(dim(train)[1]+1):dim(combi)[1], ]
+```
+
+### Naive Bayes model
+```{r}
+library(e1071)
+fit <- naiveBayes(as.factor(Survived) ~ Pclass + Sex + Age + Fareclass + Embarked + Title + FamilySize, data = train)
+Prediction <- predict(fit, test)
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "/home/yanyg/Kaggle/Titanic:MachineLearningfromDisaster/titanic/NaiveBayes/naiveBayes1.csv", row.names = FALSE)
+```
+
+Laplace smoothing
+```{r}
+fit <- naiveBayes(as.factor(Survived) ~ Pclass + Sex + Age + Fareclass + Embarked + Title + FamilySize, data = train, laplace = 1)
+Prediction <- predict(fit, test)
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "/home/yanyg/Kaggle/Titanic:MachineLearningfromDisaster/titanic/NaiveBayes/naiveBayes2.csv", row.names = FALSE)
+```
+
+### diff two results
+```{r}
+result0 <- read.csv("~/Kaggle/Titanic:MachineLearningfromDisaster/titanic/NaiveBayes/naiveBayes0.csv")
+result1 <- submit
+resultCombi <- rbind(result0, result1)
+resultCombi$Survived <- as.integer(resultCombi$Survived)
+result0 <- resultCombi[1:nrow(result0), ]
+result1 <- resultCombi[(nrow(result0)+1):nrow(resultCombi), ]
+result0$Survived - result1$Survived
+```
+
+
+
+
+
+
+
+
+
+
